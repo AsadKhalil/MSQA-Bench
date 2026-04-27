@@ -1,8 +1,8 @@
 {
   "_comment": "QLoRA LLM Fine-Tuner Configuration (24GB GPU)",
 
-  "input_jsonl": "/home/asad/output_consolidated/consolidated_qa.jsonl",
-  "output_dir": "/home/asad/models/fine_tuned_llms",
+  "input_jsonl": "data/consolidated_qa.jsonl",
+  "output_dir": "models/fine_tuned_llms",
   "log_file": "logs/llm_finetuning.log",
 
   "base_model": "Qwen/Qwen2.5-3B-Instruct",
@@ -52,7 +52,7 @@
 
   "eval_max_new_tokens": 256,
   "eval_temperature": 0.1,
-  "eval_sample_size": 50,
+  "eval_sample_size": 200,
 
   "seed": 42,
   "bf16": true,

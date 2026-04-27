@@ -7,10 +7,25 @@ import json
 from openai import OpenAI, APIError
 
 # --- Configuration ---
-input_directory = "/home/tk-lpt-0806/Desktop/pdf_to_process/input/"
-output_directory = "/home/tk-lpt-0806/Desktop/pdf_to_process/output_llm/"
-log_file = "/home/tk-lpt-0806/Desktop/pdf_to_process/processing.log"
-processed_files_record = "processed_files.json"
+import argparse
+
+_parser = argparse.ArgumentParser(description="Batch LLM-assisted PDF text cleaner.")
+_parser.add_argument("--input-dir", default="data/input",
+                     help="Directory of PDFs (default: data/input)")
+_parser.add_argument("--output-dir", default="data/output_llm",
+                     help="Output directory (default: data/output_llm)")
+_parser.add_argument("--log-file", default="logs/processing.log",
+                     help="Log file (default: logs/processing.log)")
+_parser.add_argument("--record", default="processed_files.json",
+                     help="Resume record (default: processed_files.json)")
+_args = _parser.parse_args()
+
+input_directory = _args.input_dir
+output_directory = _args.output_dir
+log_file = _args.log_file
+processed_files_record = _args.record
+os.makedirs(output_directory, exist_ok=True)
+os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
 key = os.environ.get("OPENAI_API_KEY", "")
 
 # --- Initialize Logging ---

@@ -7,14 +7,20 @@ from openai import OpenAI, APIError
 import re
 
 # --- Configuration ---
-pdf_path = "/home/tk-lpt-0806/Desktop/pdf_to_process/input/dd03a3b2551ce2921e8ae7fe7c9dc0f145767277.pdf"
-# pdf_path = (
-#     "/tear/yoda/pdf_to_txt_using_llm/input/dd03a3b2551ce2921e8ae7fe7c9dc0f145767277.pdf"
-# )
-output_cleaned_file = "cleaned_output.txt"
-intermediate_file = "intermediate_output.txt"
-# ollama_api_url = "http://localhost:11434/v1"
-ollama_model = "o3-mini"
+import argparse
+
+_parser = argparse.ArgumentParser(description="LLM-assisted PDF text cleaner (single document).")
+_parser.add_argument("pdf", nargs="?", default="data/input/sample.pdf",
+                     help="Path to a PDF file (default: data/input/sample.pdf)")
+_parser.add_argument("--output", default="cleaned_output.txt", help="Cleaned output file")
+_parser.add_argument("--intermediate", default="intermediate_output.txt", help="Intermediate raw output")
+_parser.add_argument("--model", default="o3-mini", help="Chat model name (e.g. o3-mini, gpt-4o-mini)")
+_args = _parser.parse_args()
+
+pdf_path = _args.pdf
+output_cleaned_file = _args.output
+intermediate_file = _args.intermediate
+ollama_model = _args.model
 key = os.environ.get("OPENAI_API_KEY", "")
 # base_url=ollama_api_url,
 # --- Initialize OpenAI Client for Ollama ---

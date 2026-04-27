@@ -34,9 +34,8 @@ REPO = Path(__file__).resolve().parents[1]
 FIG_DIR = REPO / "thesis" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Map display name -> directory under models/ (or None for repo-root MiniLM)
-EMB_MODELS: list[tuple[str, Path | None]] = [
-    ("MiniLM",     None),
+# Models reported in the MSQA-Bench paper (E5 / BGE / Nomic).
+EMB_MODELS: list[tuple[str, Path]] = [
     ("E5-base",    REPO / "models" / "fine_tuned_embeddings_e5_base_v2"),
     ("E5-large",   REPO / "models" / "fine_tuned_embeddings_e5_large_v2"),
     ("BGE-base",   REPO / "models" / "fine_tuned_embeddings_bge_base_en_v1.5"),
@@ -70,18 +69,11 @@ def collect() -> dict:
     ft: dict[str, dict[str, float]] = {}
     base: dict[str, dict[str, float]] = {}
 
-    minilm_ts = _load_json(REPO / "training_summary.json") or {}
-    if "test_results" in minilm_ts:
-        ft["MiniLM"] = {m: float(minilm_ts["test_results"][m]) for m in METRICS}
-    if minilm_ts.get("metrics_history"):
-        score = minilm_ts["metrics_history"][0].get("score", {})
-        base["MiniLM"] = {m: float(score[COSINE_KEYS[m]]) for m in METRICS if COSINE_KEYS[m] in score}
-
-    for name, folder in EMB_MODELS[1:]:
-        ft_json = _load_json(folder / "eval_results_test.json") if folder else None
+    for name, folder in EMB_MODELS:
+        ft_json = _load_json(folder / "eval_results_test.json")
         if ft_json:
             ft[name] = {m: float(ft_json[m]) for m in METRICS if m in ft_json}
-        ts = _load_json(folder / "training_summary.json") if folder else None
+        ts = _load_json(folder / "training_summary.json")
         if ts and ts.get("metrics_history"):
             score = ts["metrics_history"][0].get("score", {})
             base[name] = {m: float(score[COSINE_KEYS[m]]) for m in METRICS if COSINE_KEYS[m] in score}

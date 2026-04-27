@@ -58,9 +58,9 @@ logger = logging.getLogger(__name__)
 # Paths (adjust if your server layout differs)
 # ---------------------------------------------------------------------------
 DEFAULT_PROJECT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DATA_JSONL = "/home/asad/MS-GPT/output_consolidated/consolidated_qa.jsonl"
-DEFAULT_EMBEDDING_DIR = "/home/asad/MS-GPT/models/fine_tuned_embeddings"
-DEFAULT_LLM_DIR = "/home/asad/MS-GPT/models/fine_tuned_llms"
+DEFAULT_DATA_JSONL = str(DEFAULT_PROJECT_DIR / "data" / "consolidated_qa.jsonl")
+DEFAULT_EMBEDDING_DIR = str(DEFAULT_PROJECT_DIR / "models" / "fine_tuned_embeddings")
+DEFAULT_LLM_DIR = str(DEFAULT_PROJECT_DIR / "models" / "fine_tuned_llms")
 DEFAULT_OUTPUT_DIR = DEFAULT_PROJECT_DIR / "paper_results" / "model_results"
 
 # Embedding models config (name -> base HF path)

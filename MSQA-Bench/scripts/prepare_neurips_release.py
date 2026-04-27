@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
@@ -24,6 +25,9 @@ SPLITS = ("train", "val", "test")
 TEXT_FIELDS = {"context", "evidence_spans"}
 LOCAL_FIELDS = {"source_pdf"}
 OPTIONAL_SOURCE_FIELDS = {"file_name"}
+SECRET_PATTERNS = (
+    (re.compile(r"sk-[A-Za-z0-9_-]{20,}"), "[REDACTED_OPENAI_API_KEY]"),
+)
 
 RESTRICTED_KEEP_FIELDS = (
     "id",
@@ -73,8 +77,20 @@ def is_redistributable(record: Dict[str, Any], allowed_licenses: set[str]) -> bo
     return str(record.get("license", "unknown")).lower() in allowed_licenses
 
 
+def redact_secrets(value: Any) -> Any:
+    if isinstance(value, str):
+        for pattern, replacement in SECRET_PATTERNS:
+            value = pattern.sub(replacement, value)
+        return value
+    if isinstance(value, list):
+        return [redact_secrets(item) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_secrets(item) for key, item in value.items()}
+    return value
+
+
 def clean_redistributable(record: Dict[str, Any]) -> Dict[str, Any]:
-    out = dict(record)
+    out = redact_secrets(dict(record))
     for field in LOCAL_FIELDS:
         out.pop(field, None)
     out["document_hash"] = out.get("doc_id")
@@ -84,7 +100,7 @@ def clean_redistributable(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def clean_restricted(record: Dict[str, Any], keep_abstractive_answers: bool) -> Dict[str, Any]:
-    out = {field: record.get(field) for field in RESTRICTED_KEEP_FIELDS if field in record}
+    out = redact_secrets({field: record.get(field) for field in RESTRICTED_KEEP_FIELDS if field in record})
     out["document_hash"] = record.get("doc_id")
     out["redistribution_status"] = "metadata_only"
     out["release_license"] = "source_terms_apply"
