@@ -36,25 +36,25 @@ Some workflows require external services or hardware: GROBID for structured PDF 
 Run tests:
 
 ```bash
-python -m pytest
+python3 -m pytest
 ```
 
 Validate embedding training setup:
 
 ```bash
-python scripts/validate_embedding_setup.py
+python3 scripts/validate_embedding_setup.py
 ```
 
 Run the paper pipeline:
 
 ```bash
-python scripts/run_paper_pipeline.py --config config/paper_pipeline.json
+python3 scripts/run_paper_pipeline.py --config config/paper_pipeline.json
 ```
 
 Prepare the two-tier NeurIPS/Hugging Face dataset release from generated splits:
 
 ```bash
-python scripts/prepare_neurips_release.py \
+python3 scripts/prepare_neurips_release.py \
   --input-dir paper_results/dataset/splits \
   --output-dir paper_results/neurips_release
 ```
@@ -62,9 +62,10 @@ python scripts/prepare_neurips_release.py \
 Reconstruct a restricted metadata-only record from a local PDF collection:
 
 ```bash
-python scripts/reconstruct_restricted_record.py \
-  --record restricted_record.json \
-  --pdf-dir /path/to/local/pdfs
+python3 scripts/reconstruct_restricted_record.py \
+  --restricted-jsonl paper_results/neurips_release/restricted/test.jsonl \
+  --pdf-dir /path/to/local/pdfs \
+  --output-jsonl reconstructed_test.jsonl
 ```
 
 ## Data And Artifact Policy

@@ -1,47 +1,75 @@
 #!/usr/bin/env python3
-"""
-Test script for PDF Vision Extractor
+"""Smoke tests for the PDF Vision Extractor.
+
+These tests skip cleanly when the optional Ollama service or sample PDF is not
+available, so `python -m pytest` remains useful in a fresh code checkout.
 """
 
+import os
 import sys
 from pathlib import Path
-from pdf_vision_extractor_clean import PDFVisionExtractor
+
+import pytest
+import requests
+
+try:
+    import fitz  # noqa: F401
+    HAVE_PYMUPDF = True
+except ImportError:
+    HAVE_PYMUPDF = False
+
+PDFVisionExtractor = None
+if HAVE_PYMUPDF:
+    try:
+        from .vision_extractor import PDFVisionExtractor
+    except ImportError:  # pragma: no cover - direct script execution fallback
+        from vision_extractor import PDFVisionExtractor
 
 
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+SAMPLE_PDF = Path(os.environ.get("MSQA_TEST_PDF", "input/dd03a3b2551ce2921e8ae7fe7c9dc0f145767277.pdf"))
+
+
+def ollama_available() -> bool:
+    try:
+        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+        return response.ok
+    except requests.RequestException:
+        return False
+
+
+@pytest.mark.skipif(not HAVE_PYMUPDF, reason="PyMuPDF is not installed")
+@pytest.mark.skipif(not ollama_available(), reason="Ollama is not running")
 def test_single_pdf():
     """Test extraction from a single PDF file."""
     print("=== Testing Single PDF Extraction ===")
-    
-    # Use one of the existing PDFs
-    pdf_path = "input/dd03a3b2551ce2921e8ae7fe7c9dc0f145767277.pdf"
-    
-    if not Path(pdf_path).exists():
-        print(f"Test PDF not found: {pdf_path}")
-        return False
+    if not SAMPLE_PDF.exists():
+        pytest.skip(f"Sample PDF not found: {SAMPLE_PDF}")
     
     try:
         # Initialize extractor
         extractor = PDFVisionExtractor(
             model="llava:7b",  # Use smaller model for testing
             output_dir="test_output",
-            log_level="INFO"
+            log_level="INFO",
+            ollama_url=OLLAMA_URL,
         )
         
         # Extract first 2 pages only for testing
         success = extractor.extract_from_pdf(
-            pdf_path=pdf_path,
+            pdf_path=str(SAMPLE_PDF),
             output_filename="test_extraction.txt",
             start_page=1,
             end_page=2
         )
         
         if success:
-            print("✓ Single PDF test passed!")
+            print("Single PDF test passed.")
             
             # Check if output file was created
             output_file = Path("test_output/test_extraction.txt")
             if output_file.exists():
-                print(f"✓ Output file created: {output_file}")
+                print(f"Output file created: {output_file}")
                 print(f"  File size: {output_file.stat().st_size} bytes")
                 
                 # Show first few lines
@@ -54,14 +82,14 @@ def test_single_pdf():
                             print(f"    {i}: {line[:80]}...")
             return True
         else:
-            print("✗ Single PDF test failed!")
-            return False
+            pytest.fail("Single PDF extraction returned False")
             
     except Exception as e:
-        print(f"✗ Test failed with error: {e}")
-        return False
+        pytest.fail(f"Test failed with error: {e}")
 
 
+@pytest.mark.skipif(not HAVE_PYMUPDF, reason="PyMuPDF is not installed")
+@pytest.mark.skipif(not ollama_available(), reason="Ollama is not running")
 def test_connection():
     """Test Ollama connection."""
     print("=== Testing Ollama Connection ===")
@@ -70,52 +98,22 @@ def test_connection():
         extractor = PDFVisionExtractor(
             model="llava:7b",
             output_dir="test_output",
-            log_level="INFO"
+            log_level="INFO",
+            ollama_url=OLLAMA_URL,
         )
-        print("✓ Ollama connection test passed!")
+        print("Ollama connection test passed.")
         return True
         
     except SystemExit:
-        print("✗ Ollama connection test failed!")
-        print("  Make sure Ollama is running: ollama serve")
-        print("  And the model is available: ollama pull llava:7b")
-        return False
+        pytest.fail("Ollama connection failed; ensure `ollama serve` and `ollama pull llava:7b` have run")
     except Exception as e:
-        print(f"✗ Connection test failed with error: {e}")
-        return False
+        pytest.fail(f"Connection test failed with error: {e}")
 
 
 def main():
-    """Run all tests."""
-    print("PDF Vision Extractor Test Suite")
-    print("=" * 40)
-    
-    tests_passed = 0
-    total_tests = 2
-    
-    # Test 1: Connection
-    if test_connection():
-        tests_passed += 1
-    
-    print()
-    
-    # Test 2: Single PDF extraction
-    if test_single_pdf():
-        tests_passed += 1
-    
-    print()
-    print("=" * 40)
-    print(f"Tests passed: {tests_passed}/{total_tests}")
-    
-    if tests_passed == total_tests:
-        print("✓ All tests passed!")
-        return True
-    else:
-        print("✗ Some tests failed!")
-        return False
+    """Run through pytest when invoked directly."""
+    return pytest.main([__file__])
 
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
-
+    sys.exit(main())
