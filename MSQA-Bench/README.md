@@ -31,6 +31,38 @@ pip install -r requirements.txt
 
 Some workflows require external services or hardware: GROBID for structured PDF parsing, vLLM/Ollama/OpenAI-compatible generation endpoints for QA generation, and CUDA GPUs for model fine-tuning.
 
+## Quickstart: load the dataset and run the BM25 baseline
+
+This reproduces the BM25 row of Table 3 in the paper (R@10 = 0.742) on the
+redistributable test split.
+
+```python
+from datasets import load_dataset
+
+# Two configs: "redistributable" (text-bearing, CC-BY-4.0) and
+# "restricted" (metadata-only; reconstruct text locally with the script below).
+ds = load_dataset("asad00027/MSQA-Bench", "redistributable", split="test")
+print(ds[0]["question"], "->", ds[0]["answer"][:80])
+```
+
+```bash
+# Five-minute reproduction of the BM25 retrieval baseline on a 5K-query sample.
+python3 - <<'PY'
+from datasets import load_dataset
+
+ds = load_dataset("asad00027/MSQA-Bench", "redistributable", split="test")
+ds.to_json("/tmp/msqa_redistributable_test.jsonl")
+PY
+
+python3 scripts/evaluate_bm25_baseline.py \
+  --data /tmp/msqa_redistributable_test.jsonl \
+  --output paper_results/evaluation \
+  --sample-size 5000
+```
+
+Expected output: `recall@10 ~= 0.742, mrr@10 ~= 0.668, ndcg@10 ~= 0.686` (matches
+Table 3 of the paper).
+
 ## Common Commands
 
 Run tests:
