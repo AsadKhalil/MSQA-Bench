@@ -96,8 +96,16 @@ def process_pdfs_in_directory(input_dir, output_dir):
             except Exception as e:
                 print(f"Error processing {pdf_file}: {e}")
 
-# Example usage
-input_directory = '/home/tk-lpt-0806/Desktop/pdf_to_process'  # Directory containing the PDFs
-output_directory = '/home/tk-lpt-0806/Desktop/pdf_to_process/grobid'  # Directory to save the text files
+if __name__ == "__main__":
+    import argparse
 
-process_pdfs_in_directory(input_directory, output_directory)
+    parser = argparse.ArgumentParser(
+        description="Run GROBID full-text extraction on a directory of PDFs."
+    )
+    parser.add_argument("--input-dir", default="data/input",
+                        help="Directory of PDFs (default: data/input)")
+    parser.add_argument("--output-dir", default="data/grobid",
+                        help="Output directory (default: data/grobid)")
+    args = parser.parse_args()
+
+    process_pdfs_in_directory(args.input_dir, args.output_dir)

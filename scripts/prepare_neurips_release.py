@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
@@ -24,10 +25,26 @@ SPLITS = ("train", "val", "test")
 TEXT_FIELDS = {"context", "evidence_spans"}
 LOCAL_FIELDS = {"source_pdf"}
 OPTIONAL_SOURCE_FIELDS = {"file_name"}
+SECRET_PATTERNS = (
+    (re.compile(r"sk-[A-Za-z0-9_-]{20,}"), "[REDACTED_OPENAI_API_KEY]"),
+)
+TITLE_SUSPICIOUS_PATTERNS = (
+    re.compile(r"^\s*\d+\s*(?:department|division|faculty|institute|laboratory|school|state key)", re.I),
+    re.compile(r"^\s*(?:abstract|background:|citation:|received:|the author\(s\)|open access|this item was submitted)", re.I),
+    re.compile(r"^\s*(?:archive for|skip to|match commun\.|journal of .*submitted)", re.I),
+    re.compile(r"\b(?:creative commons|licensed under|university|department of|laboratory of|academy of sciences)\b", re.I),
+    re.compile(r"^(?:[A-Z][A-Za-z'’-]+(?:\s+[A-Z]\.)?(?:\s+[A-Z][A-Za-z'’-]+)?\s*,\s*){2,}"),
+)
+TITLE_STOP_PATTERNS = (
+    r"\s+(?:PLOS ONE|Scientific Reports|Nature Communications|BMC [A-Za-z ]+|Frontiers in [A-Za-z \n]+)\s*\|.*$",
+    r"\s+www\.[^\s]+.*$",
+    r"\s+\|\s+www\..*$",
+    r"\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}.*$",
+    r"\s+\d{4}\s*\|\s*Volume.*$",
+)
 
 RESTRICTED_KEEP_FIELDS = (
     "id",
-    "question",
     "doc_id",
     "doi",
     "pmid",
@@ -73,8 +90,80 @@ def is_redistributable(record: Dict[str, Any], allowed_licenses: set[str]) -> bo
     return str(record.get("license", "unknown")).lower() in allowed_licenses
 
 
+def redact_secrets(value: Any) -> Any:
+    if isinstance(value, str):
+        for pattern, replacement in SECRET_PATTERNS:
+            value = pattern.sub(replacement, value)
+        return value
+    if isinstance(value, list):
+        return [redact_secrets(item) for item in value]
+    if isinstance(value, dict):
+        return {key: redact_secrets(item) for key, item in value.items()}
+    return value
+
+
+def normalize_title(title: str) -> str:
+    title = re.sub(r"\s+", " ", title or "").strip(" .;,:|-")
+    for pattern in TITLE_STOP_PATTERNS:
+        title = re.sub(pattern, "", title, flags=re.I | re.S).strip(" .;,:|-")
+    return title
+
+
+def suspicious_title(title: Any) -> bool:
+    if not isinstance(title, str) or not title.strip():
+        return True
+    clean = normalize_title(title)
+    if len(clean) < 8 or len(clean) > 180:
+        return True
+    if clean.count(",") >= 3 and not re.search(r"[:?]", clean):
+        return True
+    return any(pattern.search(clean) for pattern in TITLE_SUSPICIOUS_PATTERNS)
+
+
+def infer_title_from_context(record: Dict[str, Any]) -> Optional[str]:
+    context = record.get("context")
+    doi = record.get("doi")
+    if not isinstance(context, str) or "doi:" not in context.lower():
+        return None
+
+    candidates = []
+    for match in re.finditer(r"doi:\s*\S+\s+(.{8,260})", context, flags=re.I | re.S):
+        candidate = normalize_title(match.group(1))
+        if doi and isinstance(doi, str):
+            candidate = candidate.replace(doi, "").strip()
+        candidates.append(candidate)
+
+    for candidate in reversed(candidates):
+        if not candidate:
+            continue
+        if re.match(r"^(?:figure|table)\s+\d+", candidate, flags=re.I):
+            continue
+        if re.search(r"\b(?:doi|copyright|creative commons|downloaded from)\b", candidate, flags=re.I):
+            continue
+        alpha = sum(ch.isalpha() for ch in candidate)
+        if 8 <= len(candidate) <= 180 and alpha / max(len(candidate), 1) > 0.45:
+            return candidate
+    return None
+
+
+def repair_metadata(record: Dict[str, Any]) -> Dict[str, Any]:
+    repaired = dict(record)
+    if suspicious_title(repaired.get("title")):
+        inferred = infer_title_from_context(repaired)
+        if inferred:
+            repaired["title"] = inferred
+            repaired["title_source"] = "context_footer"
+        elif repaired.get("title"):
+            repaired["title"] = None
+            repaired["title_source"] = "unavailable_after_cleanup"
+    else:
+        repaired["title"] = normalize_title(str(repaired["title"]))
+        repaired["title_source"] = repaired.get("title_source", "extracted")
+    return repaired
+
+
 def clean_redistributable(record: Dict[str, Any]) -> Dict[str, Any]:
-    out = dict(record)
+    out = redact_secrets(repair_metadata(record))
     for field in LOCAL_FIELDS:
         out.pop(field, None)
     out["document_hash"] = out.get("doc_id")
@@ -84,8 +173,11 @@ def clean_redistributable(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def clean_restricted(record: Dict[str, Any], keep_abstractive_answers: bool) -> Dict[str, Any]:
-    out = {field: record.get(field) for field in RESTRICTED_KEEP_FIELDS if field in record}
-    out["document_hash"] = record.get("doc_id")
+    repaired = repair_metadata(record)
+    out = redact_secrets({field: repaired.get(field) for field in RESTRICTED_KEEP_FIELDS if field in repaired})
+    if "title_source" in repaired:
+        out["title_source"] = repaired["title_source"]
+    out["document_hash"] = repaired.get("doc_id")
     out["redistribution_status"] = "metadata_only"
     out["release_license"] = "source_terms_apply"
 
@@ -101,20 +193,22 @@ def clean_restricted(record: Dict[str, Any], keep_abstractive_answers: bool) -> 
 
 
 def audit_row(record: Dict[str, Any], status: str, answer_released: bool) -> Dict[str, Any]:
+    repaired = repair_metadata(record) if record else record
     return {
-        "record_id": record.get("id"),
-        "document_hash": record.get("doc_id"),
-        "doi": record.get("doi"),
-        "title": record.get("title"),
-        "year": record.get("year"),
-        "venue": record.get("venue"),
-        "license": record.get("license", "unknown"),
-        "split": record.get("split"),
-        "question_type": record.get("question_type"),
-        "answer_style": record.get("answer_style"),
+        "record_id": repaired.get("id"),
+        "document_hash": repaired.get("doc_id"),
+        "doi": repaired.get("doi"),
+        "title": repaired.get("title"),
+        "title_source": repaired.get("title_source"),
+        "year": repaired.get("year"),
+        "venue": repaired.get("venue"),
+        "license": repaired.get("license", "unknown"),
+        "split": repaired.get("split"),
+        "question_type": repaired.get("question_type"),
+        "answer_style": repaired.get("answer_style"),
         "redistribution_status": status,
         "answer_released": answer_released,
-        "source_pdf_present": bool(record.get("source_pdf")),
+        "source_pdf_present": bool(repaired.get("source_pdf")),
     }
 
 
@@ -160,9 +254,12 @@ def write_release_readme(path: Path, allowed_licenses: set[str]) -> None:
         "- `restricted/*.jsonl`: metadata-only records for sources without redistribution-compatible terms.\n"
         "- `license_audit.csv`: per-record release decision log.\n"
         "- `summary.json`: split-level counts.\n\n"
+        "Bibliographic fields are extracted automatically from PDFs and DOI/context metadata. "
+        "The `title_source` field marks whether a title was taken from extracted metadata, "
+        "inferred from a context footer, or left as an unverified extraction.\n\n"
         "## Redistributable Criterion\n\n"
         f"Allowed license values: `{', '.join(sorted(allowed_licenses))}`.\n\n"
-        "Restricted records intentionally omit `context`, `evidence_spans`, `source_pdf`, and extractive `answer` fields.\n"
+        "Restricted records intentionally omit generated QA text, `context`, `evidence_spans`, `source_pdf`, and `answer` fields.\n"
         "Use `scripts/reconstruct_restricted_record.py` with a local PDF collection to reconstruct passages for private use.\n",
         encoding="utf-8",
     )
@@ -205,23 +302,25 @@ def main() -> None:
             if not input_path.exists():
                 raise FileNotFoundError(input_path)
 
-            redistributable_records = []
-            restricted_records = []
             licenses = Counter()
+            redis_count = 0
+            restricted_count = 0
 
-            for record in iter_jsonl(input_path, args.limit):
-                licenses[str(record.get("license", "unknown")).lower()] += 1
-                if is_redistributable(record, allowed_licenses):
-                    cleaned = clean_redistributable(record)
-                    redistributable_records.append(cleaned)
-                    writer.writerow(audit_row(record, "text_released", True))
-                else:
-                    cleaned = clean_restricted(record, args.keep_abstractive_restricted_answers)
-                    restricted_records.append(cleaned)
-                    writer.writerow(audit_row(record, "metadata_only", cleaned.get("answer_released", False)))
-
-            redis_count = write_jsonl(redistributable_dir / f"{split}.jsonl", redistributable_records)
-            restricted_count = write_jsonl(restricted_dir / f"{split}.jsonl", restricted_records)
+            with (redistributable_dir / f"{split}.jsonl").open("w", encoding="utf-8") as redist_file, (
+                restricted_dir / f"{split}.jsonl"
+            ).open("w", encoding="utf-8") as restricted_file:
+                for record in iter_jsonl(input_path, args.limit):
+                    licenses[str(record.get("license", "unknown")).lower()] += 1
+                    if is_redistributable(record, allowed_licenses):
+                        cleaned = clean_redistributable(record)
+                        redist_file.write(json.dumps(cleaned, ensure_ascii=False) + "\n")
+                        redis_count += 1
+                        writer.writerow(audit_row(record, "text_released", True))
+                    else:
+                        cleaned = clean_restricted(record, args.keep_abstractive_restricted_answers)
+                        restricted_file.write(json.dumps(cleaned, ensure_ascii=False) + "\n")
+                        restricted_count += 1
+                        writer.writerow(audit_row(record, "metadata_only", cleaned.get("answer_released", False)))
             summary["splits"][split] = {
                 "redistributable": redis_count,
                 "restricted": restricted_count,

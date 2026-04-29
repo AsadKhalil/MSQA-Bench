@@ -47,8 +47,15 @@
   "evaluation": {
     "retrieval": {
       "enabled": true,
-      "models": ["bm25", "sentence-transformers/all-MiniLM-L6-v2"],
-      "sample_size": 500,
+      "models": [
+        "bm25",
+        "intfloat/e5-base-v2",
+        "intfloat/e5-large-v2",
+        "BAAI/bge-base-en-v1.5",
+        "BAAI/bge-large-en-v1.5",
+        "nomic-ai/nomic-embed-text-v1.5"
+      ],
+      "sample_size": 5000,
       "compare_baselines": true,
       "device": "auto",
       "embed_batch_size": 128

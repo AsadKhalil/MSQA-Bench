@@ -2,74 +2,70 @@
 
 ## Quick Start
 
-1. **Environment Setup**
+1. **Create and activate a virtual environment**
    ```bash
-   # Make setup script executable
-   chmod +x scripts/setup.sh
-   
-   # Run setup (creates virtual environment and installs dependencies)
-   ./scripts/setup.sh
-   ```
-
-2. **Activate Virtual Environment**
-   ```bash
+   python3 -m venv .venv
    source .venv/bin/activate
    ```
 
-3. **Install Dependencies**
+2. **Install Python dependencies**
    ```bash
-   pip install -r config/requirements.txt
+   pip install -r requirements.txt
    ```
 
-## Configuration
+3. **(Optional) Set API keys for LLM-assisted preprocessing**
+   ```bash
+   # Only needed if you re-run the LLM-based PDF cleaners.
+   # Required by src/pdf_processors/llm_pdf_processor.py and page_by_page_processor.py.
+   export OPENAI_API_KEY="sk-..."
+   ```
 
-### API Keys
-If using LLM-based processing, update the API keys in the processor files:
-- OpenAI API key in `src/pdf_processors/llm_pdf_processor.py`
-- Ollama configuration in `src/qa_generators/qa_generator.py`
+4. **(Optional) Start GROBID for structured academic parsing**
+   ```bash
+   docker run --rm --gpus all --init --ulimit core=0 -p 8070:8070 \
+       grobid/grobid:0.8.1
+   ```
 
-### GROBID Setup (Optional)
-For academic paper processing:
-```bash
-# Run GROBID Docker container
-docker run --rm --gpus all --init --ulimit core=0 -p 8070:8070 grobid/grobid:0.8.1
+5. **(Optional) Start a vLLM server for QA generation**
+   The pipeline expects an OpenAI-compatible endpoint at
+   `http://localhost:8000/v1` serving Qwen2.5-14B-Instruct-AWQ.
+
+## Reproducing the released splits
+
+The released benchmark is hosted on Hugging Face:
+<https://huggingface.co/datasets/asad00027/MSQA-Bench>.
+
+```python
+from datasets import load_dataset
+
+ds = load_dataset("asad00027/MSQA-Bench", "redistributable", split="test")
+print(ds[0])
 ```
 
-## Directory Structure
+To re-run the construction pipeline on new MS PDFs, place them in
+`data/input/` and run:
 
-- **Input PDFs**: Place in `data/input/`
-- **Processed Text**: Output goes to `data/extracted_text/`
-- **Q&A Pairs**: Generated in `data/qa_outputs/`
-- **Logs**: Check `logs/` for processing logs
-- **Temp Files**: Intermediate files in `temp/`
-
-## Usage Examples
-
-### Basic Text Extraction
 ```bash
-python src/pdf_processors/pymupdf_processor.py
+python scripts/run_paper_pipeline.py --config config/paper_pipeline.json
 ```
 
-### Batch Processing with LLM
-```bash
-python src/pdf_processors/batch_llm_processor.py
-```
+## Directory layout
 
-### Generate Q&A Pairs
-```bash
-python src/qa_generators/qa_generator.py
-```
+| Path                      | Purpose                                       |
+|---------------------------|-----------------------------------------------|
+| `data/input/`             | Source PDFs                                   |
+| `data/extracted_text/`    | Extracted plain-text                          |
+| `data/qa_outputs/`        | Per-file generated QA JSONLs                  |
+| `data/consolidated_qa.jsonl` | Concatenated QA file (input to pipeline)   |
+| `paper_results/`          | Per-stage pipeline outputs                    |
+| `models/fine_tuned_*`     | Trained adapter / encoder weights             |
 
 ## Troubleshooting
 
-1. **Import Errors**: Ensure you're in the project root and virtual environment is activated
-2. **API Errors**: Check API keys and network connectivity
-3. **GROBID Errors**: Ensure GROBID Docker container is running on port 8070
-4. **Memory Issues**: For large PDFs, use page-by-page processing
-
-## Development
-
-- Add new processors to `src/pdf_processors/`
-- Add new Q&A generators to `src/qa_generators/`
-- Add new vision extractors to `src/vision_extractors/`
-- Update tests in respective directories
+- **CUDA out-of-memory.** Lower `per_device_train_batch_size` and raise
+  `gradient_accumulation_steps` in `config/llm_finetuner.json`.
+- **GROBID timeout.** Re-run the affected file individually with
+  `python src/pdf_processors/grobid_processor.py --input-dir data/input/<file>`.
+- **HuggingFace gated model.** `meta-llama/Llama-3.1-8B-Instruct` is
+  intentionally `enabled: false` in the shipped config; request access on
+  HF and flip the flag when granted.

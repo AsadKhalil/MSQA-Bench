@@ -137,11 +137,16 @@ def process_pdfs_in_directory(input_dir, output_dir):
     )
 
 
-# Example usage
 if __name__ == "__main__":
+    import argparse
 
-    input_directory = "/tear/dasulimov/dasulimov/home_folder/mass_spec_papers_multi"
-    output_directory = "/tear/yoda/processed_pdf_to_txt"
+    parser = argparse.ArgumentParser(
+        description="Run GROBID full-text extraction over a PDF directory (batch)."
+    )
+    parser.add_argument("--input-dir", default="data/input",
+                        help="Directory of PDFs (default: data/input)")
+    parser.add_argument("--output-dir", default="data/grobid",
+                        help="Output directory (default: data/grobid)")
+    args = parser.parse_args()
 
-    process_pdfs_in_directory(input_directory, output_directory)
-# /tear/dasulimov/dasulimov/home_folder/mass_spec_papers_multi -> 36214
+    process_pdfs_in_directory(args.input_dir, args.output_dir)

@@ -1,9 +1,17 @@
+import argparse
+
 import fitz  # PyMuPDF
 import pandas as pd
 from unidecode import unidecode
 
-# Path to the PDF file
-pdf_path = '/home/tk-lpt-0806/Desktop/pdf_to_process/input/fbf30d7e8741a78d9eb6d228e02ed03a80499a36.pdf'
+parser = argparse.ArgumentParser(description="Extract block-level text from a PDF using PyMuPDF.")
+parser.add_argument("pdf", nargs="?", default="data/input/sample.pdf",
+                    help="Path to a PDF file (default: data/input/sample.pdf)")
+parser.add_argument("--out-txt", default="output.txt", help="Output text file")
+parser.add_argument("--out-csv", default="output.csv", help="Output CSV file")
+args = parser.parse_args()
+
+pdf_path = args.pdf
 
 # Open the PDF
 doc = fitz.open(pdf_path)
@@ -33,14 +41,14 @@ df['text'] = df['text'].apply(unidecode)
 df = df.reset_index(drop=True)
 
 
-with open('output.txt', 'w', encoding='utf-8') as file:
+with open(args.out_txt, 'w', encoding='utf-8') as file:
     for index, row in df.iterrows():
         file.write(f"Page: {row['page']}, Block: {row['block_no']}, Text: {row['text']}\n")
 
 # Option 2: Save as a CSV file (recommended for structured data)
-df.to_csv('output.csv', index=False, encoding='utf-8')
+df.to_csv(args.out_csv, index=False, encoding='utf-8')
 
 # Close the document
 doc.close()
 
-print("DataFrame has been saved to 'output.txt' and 'output.csv'.")
+print(f"DataFrame has been saved to '{args.out_txt}' and '{args.out_csv}'.")

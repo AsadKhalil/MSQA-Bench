@@ -1,10 +1,10 @@
 {
   "_comment": "Streaming Embedding Fine-Tuner Configuration",
   
-  "input_jsonl": "/home/asad/output_consolidated/consolidated_qa.jsonl",
-  "output_dir": "/home/asad/models/fine_tuned_embeddings",
-  "checkpoint_dir": "/home/asad/models/fine_tuned_embeddings/checkpoints",
-  "log_file": "/home/asad/output_consolidated/models/logs/streaming_finetuning.log",
+  "input_jsonl": "data/consolidated_qa.jsonl",
+  "output_dir": "models/fine_tuned_embeddings",
+  "checkpoint_dir": "models/fine_tuned_embeddings/checkpoints",
+  "log_file": "logs/streaming_finetuning.log",
   
   "base_model": "nomic-ai/nomic-embed-text-v1.5",
   "max_seq_length": 8192,

@@ -26,7 +26,7 @@ class EmbeddingFineTuner:
         self.device = self._get_device()
         
         # Paths
-        self.input_jsonl = Path(config.get("input_jsonl", "data/qa_outputs/jsonl/questions_answers.jsonl"))
+        self.input_jsonl = Path(config.get("input_jsonl", "data/consolidated_qa.jsonl"))
         self.output_dir = Path(config.get("output_dir", "models/fine_tuned_embeddings"))
         self.checkpoint_dir = self.output_dir / "checkpoints"
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -415,4 +415,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -62,8 +62,14 @@ def convert_pdfs_in_directory(directory_path):
     
     print("All PDFs processed.")
 
-# Set the directory path to where your PDFs are located
-directory_path = "/home/tk-lpt-0806/Desktop/pdf_to_process"
+if __name__ == "__main__":
+    import argparse
 
-# Run the conversion process
-convert_pdfs_in_directory(directory_path)
+    parser = argparse.ArgumentParser(
+        description="Convert PDFs in a directory to .txt, .html, and .md."
+    )
+    parser.add_argument("directory", nargs="?", default="data/input",
+                        help="Directory of PDFs (default: data/input)")
+    args = parser.parse_args()
+
+    convert_pdfs_in_directory(args.directory)

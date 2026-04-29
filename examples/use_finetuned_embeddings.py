@@ -197,7 +197,7 @@ def example_qa_retrieval():
     print("=" * 70)
     
     # Check if JSONL file exists
-    jsonl_path = Path("data/qa_outputs/jsonl/questions_answers.jsonl")
+    jsonl_path = Path("data/consolidated_qa.jsonl")
     if not jsonl_path.exists():
         print(f"JSONL file not found: {jsonl_path}")
         print("Skipping this example.")
@@ -365,4 +365,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -1,3 +1,6 @@
+import argparse
+import os
+
 import fitz  # PyMuPDF
 import pandas as pd
 from unidecode import unidecode
@@ -6,17 +9,25 @@ from openai import OpenAI, APIError
 import re
 
 # --- Configuration ---
-pdf_path = "/home/tk-lpt-0806/Desktop/pdf_to_process/input/dd03a3b2551ce2921e8ae7fe7c9dc0f145767277.pdf"
-output_cleaned_file = "cleaned_output.txt"
-# ollama_api_url = "http://localhost:11434/v1"
-ollama_model = "o3-mini"
+_parser = argparse.ArgumentParser(description="LLM-assisted PDF text cleaner (page by page).")
+_parser.add_argument("pdf", nargs="?", default="data/input/sample.pdf",
+                     help="Path to a PDF file (default: data/input/sample.pdf)")
+_parser.add_argument("--output", default="cleaned_output.txt", help="Cleaned output file")
+_parser.add_argument("--model", default="o3-mini", help="Chat model name (e.g. o3-mini, gpt-4o-mini)")
+_args = _parser.parse_args()
+
+pdf_path = _args.pdf
+output_cleaned_file = _args.output
+ollama_model = _args.model
+key = os.environ.get("OPENAI_API_KEY", "")
+if not key:
+    raise RuntimeError("Set OPENAI_API_KEY before running this script.")
 
 
-# --- Initialize OpenAI Client for Ollama ---
+# --- Initialize OpenAI Client ---
 try:
     client = OpenAI(
-
-        api_key=key,  # Required by the client library, but Ollama doesn't use it
+        api_key=key,
     )
 
     print(f"OpenAI client initialized to target Ollama at ")
