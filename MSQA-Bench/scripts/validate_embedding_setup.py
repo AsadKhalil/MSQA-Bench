@@ -73,7 +73,6 @@ class SetupValidator:
             "torch": "PyTorch",
             "sentence_transformers": "Sentence Transformers",
             "transformers": "HuggingFace Transformers",
-            "pydantic": "Pydantic",
             "numpy": "NumPy",
         }
         
@@ -101,7 +100,7 @@ class SetupValidator:
                 False,
                 f"Missing packages: {', '.join(missing)}"
             )
-            print("  Install with: pip install -r requirements_embedding.txt")
+            print("  Install with: pip install -r requirements.txt")
         
         return all_installed, missing
     
@@ -307,7 +306,13 @@ class SetupValidator:
         if config_file.exists():
             self.check_config_file(config_file)
         
-        input_jsonl = Path("data/qa_outputs/jsonl/questions_answers.jsonl")
+        input_jsonl = Path("data/consolidated_qa.jsonl")
+        if config_file.exists():
+            try:
+                with config_file.open("r", encoding="utf-8") as f:
+                    input_jsonl = Path(json.load(f).get("input_jsonl", str(input_jsonl)))
+            except Exception:
+                pass
         if self.check_file_exists(input_jsonl, "Input JSONL"):
             self.check_jsonl_format(input_jsonl)
         
@@ -345,11 +350,12 @@ class SetupValidator:
             
             if not deps_ok:
                 print("\nTo install dependencies:")
-                print("  pip install -r requirements_embedding.txt")
+                print("  pip install -r requirements.txt")
             
             if not input_jsonl.exists():
-                print("\nTo generate Q&A data:")
-                print("  python src/qa_generators/qa_generator_jsonl.py")
+                print("\nTo prepare Q&A data:")
+                print("  python scripts/consolidate_qa.py")
+                print("  # or download MSQA-Bench splits from Hugging Face")
             
             return False
 
@@ -364,4 +370,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
