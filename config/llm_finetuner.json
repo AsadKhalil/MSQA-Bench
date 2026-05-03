@@ -52,7 +52,7 @@
 
   "eval_max_new_tokens": 256,
   "eval_temperature": 0.1,
-  "eval_sample_size": 200,
+  "eval_sample_size": 1000,
 
   "seed": 42,
   "bf16": true,

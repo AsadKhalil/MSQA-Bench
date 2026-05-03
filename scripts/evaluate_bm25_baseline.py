@@ -11,6 +11,8 @@ Usage:
     python scripts/evaluate_bm25_baseline.py --data /path/to/consolidated_qa.jsonl
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
@@ -84,7 +86,7 @@ def load_split_samples(
     split: str,
     sample_size: int,
 ) -> dict:
-    """Load test samples identically to data_utils.load_split_samples."""
+    """Load samples identically to data_utils.load_split_samples by default."""
     queries: dict[str, str] = {}
     corpus: dict[str, str] = {}
     relevant_docs: dict[str, set[str]] = {}
@@ -105,7 +107,7 @@ def load_split_samples(
                 continue
 
             record_id = record.get('id', str(line_num))
-            if get_split(record_id) != split:
+            if split != "all" and get_split(record_id) != split:
                 continue
 
             question = clean_question(record['question'].strip())
@@ -123,7 +125,8 @@ def load_split_samples(
             relevant_docs[qid] = {cid}
             count += 1
 
-    logger.info(f"Loaded {count} samples from {split} split")
+    split_label = "all records" if split == "all" else f"{split} split"
+    logger.info(f"Loaded {count} samples from {split_label}")
     return {"queries": queries, "corpus": corpus, "relevant_docs": relevant_docs}
 
 
@@ -139,9 +142,10 @@ def evaluate_bm25(
     jsonl_path: str,
     sample_size: int = 5000,
     output_dir: str | None = None,
+    split: str = "test",
 ) -> dict:
-    logger.info("Loading test data (same split as embedding evaluation)...")
-    data = load_split_samples(jsonl_path, "test", sample_size)
+    logger.info("Loading data...")
+    data = load_split_samples(jsonl_path, split, sample_size)
 
     queries = data["queries"]
     corpus = data["corpus"]
@@ -151,6 +155,11 @@ def evaluate_bm25(
     query_ids = list(queries.keys())
     corpus_ids = list(corpus.keys())
     corpus_texts = [corpus[cid] for cid in corpus_ids]
+    if not query_ids:
+        raise ValueError(
+            "No valid test queries were loaded. Check the input JSONL fields, "
+            "record ids, split assignment, and --sample-size."
+        )
 
     # Build BM25 index
     logger.info("Building BM25 index...")
@@ -233,10 +242,12 @@ def main() -> None:
                         help="Path to consolidated QA JSONL")
     parser.add_argument("--sample-size", type=int, default=5000,
                         help="Number of test queries (default: 5000)")
+    parser.add_argument("--split", default="test", choices=("train", "val", "test", "all"),
+                        help="Deterministic split to evaluate, or all records")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT),
                         help="Output directory for results JSON")
     args = parser.parse_args()
-    evaluate_bm25(args.data, args.sample_size, args.output)
+    evaluate_bm25(args.data, args.sample_size, args.output, split=args.split)
 
 
 if __name__ == "__main__":

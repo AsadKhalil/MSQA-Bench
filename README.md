@@ -1,12 +1,21 @@
 # MSQA-Bench
 
-Code and reproducibility materials for **MSQA-Bench**, a large-scale question-answering benchmark for computational mass spectrometry.
+Code and reproducibility materials for **MSQA-Bench**, a computational mass
+spectrometry question-answering resource. The public text-bearing benchmark
+contains 504,181 redistributable QA records; the full constructed resource
+contains 1,191,742 generated QA records when the 687,561-record metadata-only
+reconstruction tier is included.
 
 The dataset release is hosted separately on Hugging Face:
 
 <https://huggingface.co/datasets/asad00027/MSQA-Bench>
 
 This GitHub repository is intended for the NeurIPS Evaluations & Datasets code artifact. It contains the extraction, dataset-construction, filtering, training, evaluation, and release-preparation code. Large generated artifacts such as PDFs, JSONL splits, model checkpoints, logs, and Hugging Face release files are intentionally excluded.
+
+The paper reports the human audit as an estimate of residual label noise, not
+as a fully expert-authored gold guarantee. Retrieval numbers are controlled
+5K-query in-pool baselines, and generation numbers are diagnostic fine-tuned
+adapter baselines.
 
 > **Author handles.** The GitHub account `AsadKhalil`, the Hugging Face account `asad00027`, and the paper email `masad@hse.ru` all refer to the same first author (Muhammad Asad, HSE Moscow).
 
@@ -21,6 +30,7 @@ docs/                Setup and usage notes
 examples/            Small usage examples
 figures/             Paper/result figures
 requirements.txt     Python dependencies
+requirements-smoke.txt Lightweight dependencies for the artifact smoke test
 ```
 
 ## Setup
@@ -33,10 +43,33 @@ pip install -r requirements.txt
 
 Some workflows require external services or hardware: GROBID for structured PDF parsing, vLLM/Ollama/OpenAI-compatible generation endpoints for QA generation, and CUDA GPUs for model fine-tuning.
 
+## Artifact Smoke Test
+
+For reviewer sanity checks, the following CPU-only workflow installs the
+lightweight dependencies, creates and extracts a tiny PDF, downloads a small
+redistributable QA sample from Hugging Face, runs the BM25 retrieval evaluator,
+and writes a compact result table.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-smoke.txt
+python3 scripts/run_smoke_test.py --sample-size 32
+```
+
+Outputs are written under `paper_results/smoke/`, including
+`smoke_retrieval_table.md` and `evaluation/bm25_baseline_results.json`.
+Use the offline fixture mode only when network access to Hugging Face is not
+available:
+
+```bash
+python3 scripts/run_smoke_test.py --sample-source fixture --sample-size 8
+```
+
 ## Quickstart: load the dataset and run the BM25 baseline
 
-This reproduces the BM25 row of Table 3 in the paper (R@10 = 0.742) on the
-redistributable test split.
+This reproduces the controlled BM25 row of Table 3 in the paper (R@10 = 0.742)
+on a 5K-query in-pool sample from the redistributable test split.
 
 ```python
 from datasets import load_dataset
@@ -48,7 +81,8 @@ print(ds[0]["question"], "->", ds[0]["answer"][:80])
 ```
 
 ```bash
-# Five-minute reproduction of the BM25 retrieval baseline on a 5K-query sample.
+# Five-minute reproduction of the BM25 retrieval baseline on a 5K-query
+# in-pool sample.
 python3 - <<'PY'
 from datasets import load_dataset
 

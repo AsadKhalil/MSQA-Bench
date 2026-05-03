@@ -13,10 +13,24 @@ __pycache__/
 
 data/
 models/
-paper_results/
 output_consolidated/
 training_charts/
 thesis/
+
+# paper_results: ignore most generated artifacts but ship small JSON metrics
+# and audit CSVs that the paper references for reproducibility.
+paper_results/*
+!paper_results/annotation/
+!paper_results/dataset/
+!paper_results/diagnostics/
+!paper_results/evaluation/
+!paper_results/model_results/
+!paper_results/smoke/
+
+# In dataset/, only ship split statistics (raw pipeline jsonls are large)
+paper_results/dataset/*
+!paper_results/dataset/splits/
+paper_results/dataset/splits/*.jsonl
 
 *.log
 *.pid

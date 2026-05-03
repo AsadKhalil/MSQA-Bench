@@ -13,6 +13,11 @@
    pip install -r requirements.txt
    ```
 
+   For the artifact smoke test only, the lightweight dependency set is enough:
+   ```bash
+   pip install -r requirements-smoke.txt
+   ```
+
 3. **(Optional) Set API keys for LLM-assisted preprocessing**
    ```bash
    # Only needed if you re-run the LLM-based PDF cleaners.
@@ -40,6 +45,24 @@ from datasets import load_dataset
 
 ds = load_dataset("asad00027/MSQA-Bench", "redistributable", split="test")
 print(ds[0])
+```
+
+## Artifact smoke test
+
+Run this before submitting or reviewing the artifact:
+
+```bash
+python3 scripts/run_smoke_test.py --sample-size 32
+```
+
+The smoke test creates a tiny PDF, runs the PyMuPDF extraction CLI, downloads a
+small redistributable QA sample from Hugging Face, runs BM25 retrieval
+evaluation, and writes `paper_results/smoke/smoke_retrieval_table.md`.
+
+If the machine has no network access, use the offline fixture mode:
+
+```bash
+python3 scripts/run_smoke_test.py --sample-source fixture --sample-size 8
 ```
 
 To re-run the construction pipeline on new MS PDFs, place them in
