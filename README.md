@@ -17,8 +17,6 @@ as a fully expert-authored gold guarantee. Retrieval numbers are controlled
 5K-query in-pool baselines, and generation numbers are diagnostic fine-tuned
 adapter baselines.
 
-> **Author handles.** The GitHub account `AsadKhalil`, the Hugging Face account `asad00027`, and the paper email `masad@hse.ru` all refer to the same first author (Muhammad Asad, HSE Moscow).
-
 ## Repository Layout
 
 ```text
@@ -42,6 +40,24 @@ pip install -r requirements.txt
 ```
 
 Some workflows require external services or hardware: GROBID for structured PDF parsing, vLLM/Ollama/OpenAI-compatible generation endpoints for QA generation, and CUDA GPUs for model fine-tuning.
+
+## Large Dataset Reviewer Sample
+
+The full Hugging Face release is larger than 4 GB, so the dataset repository
+includes small reviewer-inspectable samples:
+
+- Redistributable sample:
+  <https://huggingface.co/datasets/asad00027/MSQA-Bench/resolve/main/sample/redistributable_sample.jsonl>
+- Restricted metadata-only sample:
+  <https://huggingface.co/datasets/asad00027/MSQA-Bench/resolve/main/sample/restricted_sample.jsonl>
+- Sample folder:
+  <https://huggingface.co/datasets/asad00027/MSQA-Bench/tree/main/sample>
+
+These files were created by taking the first records from each released tier
+after the deterministic document-level split and two-tier license partitioning
+performed by `scripts/prepare_neurips_release.py`. The redistributable sample
+contains text-bearing QA records under CC-BY-4.0; the restricted sample
+contains metadata-only records with generated text fields withheld.
 
 ## Artifact Smoke Test
 
